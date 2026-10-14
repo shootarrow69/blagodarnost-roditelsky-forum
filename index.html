@@ -1,0 +1,457 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Генератор документов — Дом молодёжи Приморского района</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@600;700;800&family=Rubik:wght@700;800;900&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<style>
+:root{
+  --red:#a8121c;
+  --red-dark:#6f0c13;
+  --burgundy:#7a1424;
+  --brown:#5a2a1a;
+  --brown-soft:#8a5a40;
+  --cream:#fffaf0;
+  --cream-2:#f5e9d2;
+  --thread:#d9b98a;
+  --autumn:#d9741f;
+  --ui-bg:#f1eadf;
+}
+*{box-sizing:border-box}
+body{margin:0;font-family:'Nunito',Arial,sans-serif;background:var(--ui-bg);color:#3a2a20;display:flex;min-height:100vh}
+
+/* ---------- Панель ---------- */
+#panel{width:350px;flex:0 0 350px;padding:18px;background:#fffaf2;border-right:2px dashed var(--thread);height:100vh;position:sticky;top:0;overflow:auto}
+#panel h1{font:800 19px 'Rubik',sans-serif;margin:0 0 12px;color:var(--red)}
+#panel label{display:block;font-weight:800;font-size:12.5px;margin:12px 0 4px;color:var(--brown)}
+#panel input[type=text],#panel textarea{width:100%;padding:9px 10px;border:2px solid var(--cream-2);border-radius:10px;font:600 14px 'Nunito',sans-serif;background:#fff;color:#3a2a20}
+#panel input:focus,#panel textarea:focus{outline:none;border-color:var(--autumn)}
+#panel textarea{min-height:100px;resize:vertical}
+#panel input[type=range]{width:100%}
+.row{display:flex;gap:8px}.row>div{flex:1}
+.seg{display:flex;border:2px solid var(--cream-2);border-radius:12px;overflow:hidden;margin-top:4px}
+.seg button{flex:1;padding:10px 6px;border:0;background:#fff;font:800 13px 'Nunito',sans-serif;color:var(--brown);cursor:pointer}
+.seg button.on{background:var(--red);color:#fff}
+.btn{display:block;width:100%;margin-top:10px;padding:12px;border:0;border-radius:12px;font:800 14px 'Nunito',sans-serif;cursor:pointer;background:var(--cream-2);color:var(--brown)}
+.btn.primary{background:var(--red);color:#fff;font-size:15px;box-shadow:0 3px 0 var(--red-dark)}
+.btn.primary:hover{background:#bf1823}
+.btn:disabled{opacity:.6;cursor:wait}
+.hint{font-size:11.5px;color:#7a6657;margin-top:4px;line-height:1.35}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
+.chip{border:0;background:var(--cream-2);border-radius:999px;padding:5px 10px;font:800 12px 'Nunito',sans-serif;cursor:pointer;color:var(--brown)}
+.chip:hover{background:#ecd3a4}
+.check{display:flex;align-items:center;gap:8px;margin-top:10px;font-weight:700;font-size:13px}
+
+/* ---------- Сцена ---------- */
+#stage{flex:1;padding:24px;display:flex;justify-content:center;align-items:flex-start;overflow:auto}
+#scaleBox{position:relative}
+#scaler{transform-origin:top left;position:absolute;left:0;top:0}
+
+/* ---------- ДОКУМЕНТ ---------- */
+#doc{
+  position:relative;overflow:hidden;color:var(--brown);font-family:'Nunito',sans-serif;
+  background:
+    radial-gradient(ellipse at 50% 0%,#ffffff 0%,rgba(255,255,255,0) 60%),
+    linear-gradient(180deg,#fffaf0 0%,#fbf3e2 100%);
+  box-shadow:0 10px 30px rgba(90,42,26,.18);
+}
+#doc.land{width:1123px;height:794px}
+#doc.port{width:794px;height:1123px}
+/* трикотажная фактура: ряды петель */
+#doc .knit{position:absolute;inset:0;pointer-events:none;opacity:.55;
+  background-image:
+    repeating-linear-gradient(90deg,rgba(217,185,138,.16) 0 1.5px,transparent 1.5px 8px),
+    repeating-linear-gradient(0deg,rgba(255,255,255,.7) 0 2px,transparent 2px 6px)}
+#frameSvg{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
+.deco{position:absolute;pointer-events:none;line-height:0}
+.deco svg{display:block;overflow:visible}
+
+/* вертикальная раскладка: шапка — центр — футер */
+#layout{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:space-between;text-align:center}
+.land #layout{padding:58px 110px 54px}
+.port #layout{padding:84px 80px 78px}
+
+#orgText{font:800 19px/1.3 'Nunito',sans-serif;color:var(--burgundy);letter-spacing:.4px;max-width:100%}
+#orgText::after{content:"";display:block;margin:12px auto 0;width:150px;height:8px;
+  background:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='150' height='8' viewBox='0 0 150 8'><path d='M2 4 Q9 0 16 4 T30 4 T44 4 T58 4 T72 4 T86 4 T100 4 T114 4 T128 4 T148 4' fill='none' stroke='%23a8121c' stroke-width='2.4' stroke-linecap='round' stroke-dasharray='6 3.5'/></svg>") center/contain no-repeat}
+
+#center{flex:1;width:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:0}
+#titleBox{white-space:nowrap;width:100%;text-align:center}
+#titleText{
+  display:inline-block;font:900 100px/1.08 'Rubik',sans-serif;letter-spacing:3px;text-transform:uppercase;color:var(--red);
+  text-shadow:
+    1px 1px 0 #c0303a,2px 2px 0 var(--red-dark),3px 3px 0 var(--red-dark),
+    4px 4px 0 rgba(111,12,19,.85),5px 6px 6px rgba(90,42,26,.35);
+  background-image:repeating-linear-gradient(90deg,rgba(255,255,255,.18) 0 2px,transparent 2px 7px);
+  -webkit-background-clip:text;background-clip:text;
+}
+#introText{margin-top:12px;font:800 21px 'Nunito',sans-serif;color:var(--brown-soft);letter-spacing:1.5px;text-transform:uppercase}
+#stitchDiv{margin:20px 0 6px;width:260px;height:14px}
+#nameText{margin-top:10px;font:900 46px/1.15 'Rubik',sans-serif;color:var(--brown);white-space:pre-line;width:100%;max-width:100%}
+#mainText{margin-top:22px;font:700 23px/1.5 'Nunito',sans-serif;color:var(--brown);white-space:pre-line;max-width:100%}
+.land #mainText{max-width:860px}
+.port #mainText{max-width:600px}
+
+#footer{width:100%;display:flex;flex-direction:column;align-items:center;gap:6px}
+#dateLine{font:800 16px 'Nunito',sans-serif;color:var(--brown-soft);margin-bottom:6px}
+.signRow{width:100%;display:flex;align-items:flex-end;justify-content:space-between;gap:18px}
+.signRow .pos{font:800 16.5px/1.3 'Nunito',sans-serif;text-align:left;color:var(--brown)}
+.land .signRow .pos{max-width:360px}
+.port .signRow .pos{max-width:270px}
+.signRow .mid{flex:1;position:relative;height:90px;min-width:120px}
+.signRow .mid .line{position:absolute;left:0;right:0;bottom:8px;border-bottom:2.5px solid var(--brown)}
+.signRow .sign{font:900 21px 'Rubik',sans-serif;color:var(--red);white-space:nowrap;padding-bottom:6px}
+#stampWrap{position:absolute;left:50%;bottom:-6px;width:200px;height:170px;transform:translateX(-50%);display:flex;align-items:center;justify-content:center}
+#stampImg{max-width:100%;max-height:100%;object-fit:contain;display:none}
+#stampPlaceholder{width:130px;height:96px;border:2.5px dashed rgba(138,90,64,.5);border-radius:50%;display:flex;align-items:center;justify-content:center;text-align:center;font:700 11.5px 'Nunito',sans-serif;color:rgba(138,90,64,.75);padding:10px}
+
+@media (max-width:900px){
+  body{flex-direction:column}
+  #panel{width:100%;flex:none;height:auto;position:static;border-right:0;border-bottom:2px dashed var(--thread)}
+  #stage{padding:10px}
+}
+</style>
+</head>
+<body>
+
+<aside id="panel">
+  <h1>🧶 Генератор документов</h1>
+
+  <label>Ориентация A4</label>
+  <div class="seg">
+    <button type="button" id="oLand" class="on">Альбомная 297×210</button>
+    <button type="button" id="oPort">Портретная 210×297</button>
+  </div>
+
+  <label for="inOrg">Шапка</label>
+  <input type="text" id="inOrg" value="СПб ГБУ «Дом молодежи Приморского района»">
+
+  <label for="inTitle">Заголовок</label>
+  <input type="text" id="inTitle" value="Благодарность">
+  <div class="chips">
+    <button class="chip" data-title="Благодарность">Благодарность</button>
+    <button class="chip" data-title="Диплом">Диплом</button>
+    <button class="chip" data-title="Грамота">Грамота</button>
+    <button class="chip" data-title="Сертификат">Сертификат</button>
+  </div>
+
+  <label for="inIntro">Вводная строка (необязательно)</label>
+  <input type="text" id="inIntro" placeholder="например: награждается">
+
+  <label for="inName">Имя / ФИО / титул + ФИО</label>
+  <textarea id="inName" style="min-height:66px">Иванова Анна Сергеевна</textarea>
+  <div class="hint">Любой формат; Enter — перенос строки.</div>
+
+  <label for="inText">Основной текст</label>
+  <textarea id="inText">За творческую инициативу, активное участие в мероприятиях Дома молодежи и вклад в развитие молодёжного движения Приморского района.</textarea>
+
+  <label for="inPos">Должность подписанта</label>
+  <textarea id="inPos" style="min-height:62px">Директор СПб ГБУ «Дом молодежи Приморского района»</textarea>
+
+  <label for="inSigner">Подписант</label>
+  <input type="text" id="inSigner" value="Д. А. Лысенко">
+
+  <label for="inDate">Дата (необязательно)</label>
+  <input type="text" id="inDate" placeholder="например: 14 октября 2026 г.">
+
+  <label for="inStamp">Печать / подпись (PNG, прозрачный фон)</label>
+  <input type="file" id="inStamp" accept="image/png,image/*">
+  <button class="btn" id="btnResetStamp" type="button">Вернуть печать по умолчанию</button>
+  <div class="row">
+    <div><label for="inStampSize">Размер</label><input type="range" id="inStampSize" min="80" max="380" value="200"></div>
+    <div><label for="inStampX">Сдвиг X</label><input type="range" id="inStampX" min="-220" max="220" value="0"></div>
+    <div><label for="inStampY">Сдвиг Y</label><input type="range" id="inStampY" min="-60" max="80" value="0"></div>
+  </div>
+  <label class="check"><input type="checkbox" id="inStampOn" checked> Показывать печать</label>
+  <div class="hint">По умолчанию подставляется <b>pechat-podpis.png</b> рядом с HTML-файлом; если его нет — загрузите PNG выше.</div>
+
+  <button class="btn primary" id="btnPdf" type="button">⬇ Скачать PDF (300 DPI)</button>
+  <div class="hint" id="status"></div>
+</aside>
+
+<main id="stage">
+  <div id="scaleBox">
+    <div id="scaler">
+      <div id="doc" class="land">
+        <div class="knit"></div>
+        <svg id="frameSvg" xmlns="http://www.w3.org/2000/svg"></svg>
+        <div id="decos"></div>
+
+        <div id="layout">
+          <div id="orgText"></div>
+          <div id="center">
+            <div id="titleBox"><span id="titleText"></span></div>
+            <div id="introText"></div>
+            <svg id="stitchDiv" viewBox="0 0 260 14" xmlns="http://www.w3.org/2000/svg">
+              <path d="M6 7 Q19 -2 32 7 T58 7 T84 7 T110 7 T136 7 T162 7 T188 7 T214 7 T254 7" fill="none" stroke="#a8121c" stroke-width="3.2" stroke-linecap="round" stroke-dasharray="9 5"/>
+              <path d="M6 9 Q19 18 32 9 T58 9 T84 9 T110 9 T136 9 T162 9 T188 9 T214 9 T254 9" fill="none" stroke="#d9741f" stroke-width="2.4" stroke-linecap="round" stroke-dasharray="7 6" opacity=".85"/>
+            </svg>
+            <div id="nameText"></div>
+            <div id="mainText"></div>
+          </div>
+          <div id="footer">
+            <div id="dateLine"></div>
+            <div class="signRow">
+              <div class="pos" id="posText"></div>
+              <div class="mid">
+                <div class="line"></div>
+                <div id="stampWrap">
+                  <img id="stampImg" alt="Печать и подпись">
+                  <div id="stampPlaceholder" data-html2canvas-ignore="true">Место для печати и подписи</div>
+                </div>
+              </div>
+              <div class="sign" id="signText"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</main>
+
+<script>
+(function(){
+  const $ = id => document.getElementById(id);
+  const doc = $('doc');
+  const DEFAULT_STAMP = 'pechat-podpis.png';
+  let orient = 'land';
+  const dims = () => orient === 'land' ? {w:1123,h:794} : {w:794,h:1123};
+
+  /* ---------- Вязаные SVG-элементы ---------- */
+  // Вязаное сердечко: контур-"косичка" из стежков + ряды петель внутри
+  function heart(size, fill, rot, id){
+    return `<svg width="${size}" height="${size*0.92}" viewBox="0 0 100 92" style="transform:rotate(${rot}deg)" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <clipPath id="hc${id}"><path d="M50 86 C10 58 3 38 3 25 C3 11 14 3 27 3 C38 3 46 10 50 18 C54 10 62 3 73 3 C86 3 97 11 97 25 C97 38 90 58 50 86 Z"/></clipPath>
+        <pattern id="hp${id}" width="9" height="9" patternUnits="userSpaceOnUse">
+          <path d="M0 0 L4.5 9 L9 0" fill="none" stroke="rgba(255,255,255,.38)" stroke-width="1.8" stroke-linecap="round"/>
+        </pattern>
+      </defs>
+      <path d="M50 86 C10 58 3 38 3 25 C3 11 14 3 27 3 C38 3 46 10 50 18 C54 10 62 3 73 3 C86 3 97 11 97 25 C97 38 90 58 50 86 Z" fill="${fill}"/>
+      <g clip-path="url(#hc${id})"><rect width="100" height="92" fill="url(#hp${id})"/>
+        <ellipse cx="32" cy="22" rx="16" ry="9" fill="rgba(255,255,255,.18)" transform="rotate(-25 32 22)"/></g>
+      <path d="M50 86 C10 58 3 38 3 25 C3 11 14 3 27 3 C38 3 46 10 50 18 C54 10 62 3 73 3 C86 3 97 11 97 25 C97 38 90 58 50 86 Z" fill="none" stroke="#fffaf0" stroke-width="3.4" stroke-dasharray="6 3.5" stroke-linecap="round"/>
+    </svg>`;
+  }
+  // Клубок ниток со стежками
+  function yarn(size, fill, rot, id){
+    return `<svg width="${size}" height="${size}" viewBox="0 0 100 100" style="transform:rotate(${rot}deg)" xmlns="http://www.w3.org/2000/svg">
+      <circle cx="50" cy="50" r="42" fill="${fill}"/>
+      <g fill="none" stroke="rgba(255,250,240,.75)" stroke-width="2.6" stroke-linecap="round" stroke-dasharray="7 4">
+        <path d="M14 38 Q50 18 86 40"/><path d="M10 52 Q50 30 90 54"/><path d="M14 66 Q50 44 86 68"/>
+        <path d="M30 14 Q54 50 34 88"/><path d="M52 10 Q74 50 54 92"/>
+      </g>
+      <circle cx="50" cy="50" r="42" fill="none" stroke="rgba(90,42,26,.25)" stroke-width="2"/>
+      <path d="M84 76 C98 82 100 94 90 98" fill="none" stroke="${fill}" stroke-width="4" stroke-linecap="round"/>
+    </svg>`;
+  }
+  // Вязаный узелок-бант из двух петель
+  function knot(size, fill, rot){
+    return `<svg width="${size}" height="${size*0.7}" viewBox="0 0 100 70" style="transform:rotate(${rot}deg)" xmlns="http://www.w3.org/2000/svg">
+      <path d="M50 35 C30 6 4 8 6 34 C8 60 32 62 50 35 Z" fill="${fill}" stroke="#fffaf0" stroke-width="3" stroke-dasharray="6 3.5"/>
+      <path d="M50 35 C70 6 96 8 94 34 C92 60 68 62 50 35 Z" fill="${fill}" stroke="#fffaf0" stroke-width="3" stroke-dasharray="6 3.5"/>
+      <circle cx="50" cy="35" r="9" fill="${fill}" stroke="#fffaf0" stroke-width="3"/>
+      <g stroke="rgba(255,255,255,.4)" stroke-width="1.8" stroke-linecap="round"><path d="M16 22 L30 40"/><path d="M26 18 L40 38"/><path d="M84 22 L70 40"/><path d="M74 18 L60 38"/></g>
+    </svg>`;
+  }
+  // Мягкая стёжка-«нитка», вьющаяся по углу
+  function thread(w,h,color,flip){
+    const d = "M4 "+(h-6)+" C "+(w*0.25)+" "+(h*0.1)+", "+(w*0.45)+" "+(h*1.0)+", "+(w*0.65)+" "+(h*0.45)+" S "+(w-6)+" 6, "+(w-6)+" 6";
+    return `<svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" style="${flip?'transform:scaleX(-1)':''}" xmlns="http://www.w3.org/2000/svg">
+      <path d="${d}" fill="none" stroke="${color}" stroke-width="5" stroke-linecap="round" stroke-dasharray="11 6"/>
+      <path d="${d}" fill="none" stroke="rgba(255,255,255,.45)" stroke-width="1.6" stroke-linecap="round" stroke-dasharray="11 6" transform="translate(0 -1.5)"/>
+    </svg>`;
+  }
+
+  function buildDecor(){
+    const {w,h} = dims();
+    // вязаный кант-рамка
+    const r = 30, m = 22;
+    $('frameSvg').setAttribute('viewBox',`0 0 ${w} ${h}`);
+    $('frameSvg').innerHTML = `
+      <rect x="${m}" y="${m}" width="${w-2*m}" height="${h-2*m}" rx="${r}" fill="none" stroke="#a8121c" stroke-width="7" stroke-dasharray="14 7" stroke-linecap="round"/>
+      <rect x="${m}" y="${m-2}" width="${w-2*m}" height="${h-2*m}" rx="${r}" fill="none" stroke="rgba(255,255,255,.55)" stroke-width="1.6" stroke-dasharray="14 7" stroke-linecap="round"/>
+      <rect x="${m+16}" y="${m+16}" width="${w-2*m-32}" height="${h-2*m-32}" rx="${r-12}" fill="none" stroke="#d9b98a" stroke-width="3" stroke-dasharray="3 6" stroke-linecap="round"/>`;
+    const items = [];
+    let i = 0;
+    if(orient==='land'){
+      items.push({h:heart(62,'#a8121c',-14,i++), l:36,  t:36});
+      items.push({h:heart(44,'#d9741f',12,i++),  l:92,  t:30});
+      items.push({h:yarn(52,'#7a1424',10,i++),   l:34,  t:108});
+      items.push({h:heart(62,'#a8121c',14,i++),  r:36,  t:36});
+      items.push({h:heart(44,'#d9741f',-12,i++), r:92,  t:30});
+      items.push({h:yarn(52,'#d9741f',-10,i++),  r:34,  t:108});
+      items.push({h:knot(66,'#a8121c',-8),       l:38,  b:40});
+      items.push({h:heart(40,'#7a1424',-10,i++), l:112, b:42});
+      items.push({h:knot(66,'#a8121c',8),        r:38,  b:40});
+      items.push({h:heart(40,'#7a1424',10,i++),  r:112, b:42});
+      items.push({h:thread(150,60,'#d9741f',false), l:150, t:34});
+      items.push({h:thread(150,60,'#d9741f',true),  r:150, t:34});
+    } else {
+      items.push({h:heart(66,'#a8121c',-14,i++), l:38,  t:38});
+      items.push({h:heart(46,'#d9741f',12,i++),  l:100, t:32});
+      items.push({h:yarn(54,'#7a1424',10,i++),   l:36,  t:116});
+      items.push({h:heart(66,'#a8121c',14,i++),  r:38,  t:38});
+      items.push({h:heart(46,'#d9741f',-12,i++), r:100, t:32});
+      items.push({h:yarn(54,'#d9741f',-10,i++),  r:36,  t:116});
+      items.push({h:knot(70,'#a8121c',-8),       l:40,  b:42});
+      items.push({h:heart(42,'#7a1424',-10,i++), l:120, b:44});
+      items.push({h:knot(70,'#a8121c',8),        r:40,  b:42});
+      items.push({h:heart(42,'#7a1424',10,i++),  r:120, b:44});
+      items.push({h:thread(170,70,'#d9741f',false), l:170, t:34});
+      items.push({h:thread(170,70,'#d9741f',true),  r:170, t:34});
+    }
+    $('decos').innerHTML = items.map(d=>{
+      const pos = ['l','r','t','b'].filter(k=>d[k]!==undefined)
+        .map(k=>`${{l:'left',r:'right',t:'top',b:'bottom'}[k]}:${d[k]}px`).join(';');
+      return `<div class="deco" style="${pos}">${d.h}</div>`;
+    }).join('');
+  }
+
+  /* ---------- Автоподбор размеров ---------- */
+  function fitTitle(){
+    const el = $('titleText'), box = $('titleBox');
+    const max = orient==='land' ? 100 : 84, min = 30;
+    let s = max; el.style.fontSize = s+'px';
+    while(el.scrollWidth > box.clientWidth && s > min){ s -= 2; el.style.fontSize = s+'px'; }
+  }
+  function fitName(){
+    const el = $('nameText'); const max = orient==='land' ? 46 : 44;
+    let s = max; el.style.fontSize = s+'px';
+    const lim = orient==='land' ? 150 : 190;
+    while(el.scrollHeight > lim && s > 18){ s -= 2; el.style.fontSize = s+'px'; }
+  }
+  function fitMain(){
+    const el = $('mainText'); const center = $('center');
+    let s = orient==='land' ? 23 : 24; el.style.fontSize = s+'px';
+    // освобождаем место: суммарная высота блока не должна превышать центр
+    const over = () => center.scrollHeight > center.clientHeight + 1;
+    while(over() && s > 12){ s -= 1; el.style.fontSize = s+'px'; }
+  }
+
+  /* ---------- Обновление ---------- */
+  function update(){
+    $('orgText').textContent = $('inOrg').value;
+    $('titleText').textContent = $('inTitle').value || ' ';
+    const intro = $('inIntro').value.trim();
+    $('introText').textContent = intro; $('introText').style.display = intro ? 'block' : 'none';
+    $('nameText').textContent = $('inName').value;
+    $('mainText').textContent = $('inText').value;
+    $('posText').textContent = $('inPos').value;
+    $('signText').textContent = $('inSigner').value;
+    const dt = $('inDate').value.trim();
+    $('dateLine').textContent = dt; $('dateLine').style.display = dt ? 'block' : 'none';
+
+    fitTitle(); fitName(); fitMain();
+
+    const w = $('stampWrap'), size = +$('inStampSize').value;
+    w.style.width = size+'px'; w.style.height = (size*0.85)+'px';
+    w.style.left = `calc(50% + ${$('inStampX').value}px)`;
+    w.style.bottom = (-6 - (+$('inStampY').value)) + 'px';
+    w.style.display = $('inStampOn').checked ? 'flex' : 'none';
+  }
+  ['inOrg','inTitle','inIntro','inName','inText','inPos','inSigner','inDate','inStampSize','inStampX','inStampY','inStampOn']
+    .forEach(id => $(id).addEventListener('input', update));
+  document.querySelectorAll('.chip').forEach(c => c.addEventListener('click', ()=>{ $('inTitle').value = c.dataset.title; update(); }));
+
+  /* ---------- Ориентация ---------- */
+  function setOrient(o){
+    orient = o;
+    doc.className = o;
+    $('oLand').classList.toggle('on', o==='land');
+    $('oPort').classList.toggle('on', o==='port');
+    buildDecor(); update(); rescale();
+  }
+  $('oLand').addEventListener('click', ()=>setOrient('land'));
+  $('oPort').addEventListener('click', ()=>setOrient('port'));
+
+  /* ---------- Печать / подпись ---------- */
+  const stampImg = $('stampImg'), ph = $('stampPlaceholder');
+  function showStamp(ok){ stampImg.style.display = ok ? 'block' : 'none'; ph.style.display = ok ? 'none' : 'flex'; }
+  stampImg.addEventListener('load', ()=>{
+    showStamp(true);
+    if(!stampImg.src.startsWith('data:')){
+      try{
+        const c = document.createElement('canvas'); c.width = stampImg.naturalWidth; c.height = stampImg.naturalHeight;
+        c.getContext('2d').drawImage(stampImg,0,0);
+        stampImg.src = c.toDataURL('image/png');
+      }catch(e){
+        $('status').textContent = 'Печать по умолчанию недоступна при запуске с диска — загрузите PNG кнопкой выше.';
+        showStamp(false);
+      }
+    }
+  });
+  stampImg.addEventListener('error', ()=> showStamp(false));
+  function loadDefaultStamp(){ showStamp(false); stampImg.src = DEFAULT_STAMP + '?v=' + Date.now(); }
+  loadDefaultStamp();
+  $('inStamp').addEventListener('change', e=>{
+    const f = e.target.files[0]; if(!f) return;
+    const r = new FileReader();
+    r.onload = ()=>{ stampImg.src = r.result; $('inStampOn').checked = true; update(); };
+    r.readAsDataURL(f);
+  });
+  $('btnResetStamp').addEventListener('click', ()=>{ $('inStamp').value=''; $('status').textContent=''; loadDefaultStamp(); });
+
+  /* ---------- Масштаб предпросмотра ---------- */
+  function rescale(){
+    const {w,h} = dims();
+    const avail = $('stage').clientWidth - 48;
+    const availH = window.innerWidth > 900 ? window.innerHeight - 48 : 10000;
+    const k = Math.min(1, avail / w, availH / h);
+    $('scaler').style.transform = `scale(${k})`;
+    $('scaleBox').style.width = (w*k)+'px';
+    $('scaleBox').style.height = (h*k)+'px';
+  }
+  window.addEventListener('resize', rescale);
+
+  /* ---------- Экспорт PDF ---------- */
+  const SCALE = 3; // 3× от 96 dpi ≈ 288 dpi; для A4 ≈ 300 dpi
+  async function renderCanvas(){
+    await (document.fonts ? document.fonts.ready : Promise.resolve());
+    const {w,h} = dims();
+    const holder = document.createElement('div');
+    holder.style.cssText = `position:fixed;left:-20000px;top:0;width:${w}px;height:${h}px;overflow:hidden;`;
+    const clone = doc.cloneNode(true);
+    clone.id = 'docClone'; clone.style.boxShadow = 'none';
+    holder.appendChild(clone);
+    document.body.appendChild(holder);
+    try{
+      return await html2canvas(clone, {
+        scale: SCALE, useCORS: true, backgroundColor: '#fffaf0',
+        width: w, height: h, windowWidth: w, windowHeight: h, logging: false
+      });
+    } finally { document.body.removeChild(holder); }
+  }
+  function fileBase(){
+    const t = ($('inTitle').value || 'document').trim();
+    const n = ($('inName').value || '').trim().replace(/\s+/g,'_');
+    return (t + (n ? '_' + n : '')).replace(/[\\/:*?"<>|]/g,'').slice(0,80) || 'document';
+  }
+  $('btnPdf').addEventListener('click', async ()=>{
+    const btn = $('btnPdf'), old = btn.textContent;
+    btn.disabled = true; btn.textContent = 'Создаю PDF…'; $('status').textContent = '';
+    try{
+      const canvas = await renderCanvas();
+      const { jsPDF } = window.jspdf;
+      const land = orient === 'land';
+      const pdf = new jsPDF({ orientation: land ? 'landscape' : 'portrait', unit:'mm', format:'a4', compress:true });
+      pdf.addImage(canvas.toDataURL('image/png'), 'PNG', 0, 0, land ? 297 : 210, land ? 210 : 297, undefined, 'FAST');
+      pdf.save(fileBase() + '.pdf');
+      $('status').textContent = 'Готово ✔';
+    }catch(e){
+      console.error(e); $('status').textContent = 'Ошибка экспорта: ' + e.message;
+    }
+    btn.disabled = false; btn.textContent = old;
+  });
+
+  /* ---------- Старт ---------- */
+  setOrient('land');
+  if(document.fonts) document.fonts.ready.then(()=>{ update(); rescale(); });
+})();
+</script>
+</body>
+</html>
